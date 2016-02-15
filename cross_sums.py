@@ -4,36 +4,30 @@ class Sums:
     def __init__(self, base=10, sums=None):
         self._base = base
 
-        if not sums:
-            sums = [0, self._digit(1)]
+        if sums is None:
+            sums = [(0, set()), (1, {1})]
             for d in range(2, base):
-                sums.extend([sum + self._digit(d) for sum in sums])
+                sums += [(total + d, digits | {d}) for total, digits in sums]
 
             sums = sums[1:]
             for d in range(1, base):
-                sums.remove(self._digit(d))
+                sums.remove((d, {d}))
 
         self._sums = sorted(sums)
 
-    def _digit(self, d):
-        return (d << (self._base-1)) + (1 << (d-1))
-
-    def convert(self, total):
-        return (total >> (self._base-1),
-                tuple(d for d in range(1, self._base)
-                          if total & (1 << (d-1))))
+    def convert(self, s):
+        return s[0], tuple(sorted(s[1]))
 
     def with_total(self, total):
-        return Sums(self._base, [s for s in self._sums
-                                     if s >> (self._base-1) == total])
+        return Sums(self._base, [s for s in self._sums if s[0] == total])
 
     def with_digits(self, digits):
-        if not isinstance(digits, int):
-            digits = sum((1 << (d-1)) for d in range(1, self._base)
-                             if d in digits)
-
         return Sums(self._base, [s for s in self._sums
-                                     if s & digits == digits])
+                                     if s[1].issuperset(digits)])
+
+    def with_addends(self, addends):
+        return Sums(self._base, [s for s in self._sums
+                                     if len(s[1]) == addends])
 
     def __iter__(self):
         return self._sums.__iter__()
@@ -53,4 +47,13 @@ if __name__ == '__main__':
     print('\nSums containing digits 2-9 inclusive:')
 
     for s in sums.with_digits(range(2, 10)):
+        print('  ', sums.convert(s))
+
+    print('\nSums containing 10 addends:')
+
+    for s in sums.with_addends(10):
+        print('  ', sums.convert(s))
+
+    print('\nSums totaling 20 with 5 addends including 2 and 3:')
+    for s in sums.with_total(20).with_digits({2,3}).with_addends(5):
         print('  ', sums.convert(s))
