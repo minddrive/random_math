@@ -3,75 +3,79 @@
 import functools
 
 
-class SumInfo:
-    def __init__(self, digits):
-        self.digits = digits
-        self.base = len(digits)
-
-
 @functools.total_ordering
 class CrossSum:
-    def __init__(self, cross_sum, sum_info):
-        self._cross_sum = cross_sum
-        self._digits = sum_info.digits
-        self._base = sum_info.base
+    def __init__(self, total, addends, digits):
+        self.total = total
+        self.addends = addends
+        self._digits = digits
+        self._base = len(digits)
 
-    def convert(self):
-        total, addends = self._cross_sum
+    def convert_total(self):
+        num_total = self.total
 
         total_digits = []
-        while total:
-            total_digits.append(self._digits[total % self._base])
-            total //= self._base
+        while num_total:
+            total_digits.append(self._digits[num_total % self._base])
+            num_total //= self._base
 
-        return ''.join(total_digits[::-1]), addends
+        return ''.join(total_digits[::-1])
+
+    @property
+    def num_addends(self):
+        return len(self.addends)
+
+    def _is_valid_operand(self, other):
+        return (hasattr(other, 'total') and hasattr(other, 'addends'))
 
     def __eq__(self, other):
+        if not self._is_valid_operand(other):
+            return NotImplemented
+
         return (
-            self._cross_sum == other._cross_sum
+            (self.total, self.addends) == (other.total, other.addends)
         )
 
     def __lt__(self, other):
+        if not self._is_valid_operand(other):
+            return NotImplemented
+
         return (
-            self._cross_sum < other._cross_sum
+            (self.total, self.addends) < (other.total, other.addends)
         )
 
     def __repr__(self):
-        return self.convert()
+        return (
+            "<CrossSum(total='%s', addends='%s', digits='%s')>"
+            % (self.convert_total(), self.addends, self._digits)
+        )
 
     def __str__(self):
-        total_str, addends = self.convert()
+        total_str = self.convert_total()
 
-        return '%s = %s' % (total_str, ' + '.join(addends))
-
-    def __iter__(self):
-        return self._cross_sum.__iter__()
-
-    def __len__(self):
-        return len(self._cross_sum[1])
+        return '%s = %s' % (total_str, ' + '.join(self.addends))
 
 
 class CrossSums:
     def __init__(self, digits='0123456789', cross_sums=None):
-        self._sum_info = SumInfo(digits)
-        self._digits = self._sum_info.digits
-        self._base = self._sum_info.base
+        self._digits = digits
+        self._base = len(digits)
         self._cross_sums = cross_sums
 
         if cross_sums is None:
             cross_sums = [
-                CrossSum((0, ''), self._sum_info),
-                CrossSum((1, self._digits[1]), self._sum_info)
+                CrossSum(0, '', self._digits),
+                CrossSum(1, self._digits[1], self._digits)
             ]
             for d, digit in enumerate(self._digits[2:], 2):
                 cross_sums += [
-                    CrossSum((total + d, addends + digit), self._sum_info)
-                    for total, addends in cross_sums
+                    CrossSum(cs.total + d, cs.addends + digit, self._digits)
+                    for cs in cross_sums
                 ]
 
             cross_sums = cross_sums[1:]
             for cross_sum in cross_sums:
-                if len(cross_sum) == 1:
+                if cross_sum.num_addends == 1:
                     cross_sums.remove(cross_sum)
 
         self._cross_sums = sorted(cross_sums)
@@ -86,25 +90,27 @@ class CrossSums:
                 for d in total_digits:
                     total = total * self._base + self._digits.index(d)
 
-            cross_sums = [s for s in cross_sums if s._cross_sum[0] == total]
+            cross_sums = [
+                s for s in cross_sums if s.total == total
+            ]
 
         if addends:
             cross_sums = [
-                s for s in cross_sums if len(s._cross_sum[1]) == addends
+                s for s in cross_sums if len(s.addends) == addends
             ]
 
         if digits:
             digits = set(digits)
             cross_sums = [
                 s for s in cross_sums
-                if set(s._cross_sum[1]).issuperset(digits)
+                if set(s.addends).issuperset(digits)
             ]
 
         return CrossSums(self._digits, cross_sums=cross_sums)
 
     @property
     def max_sum(self):
-        return self._cross_sums[-1][0]
+        return self._cross_sums[-1].total
 
     def __iter__(self):
         return self._cross_sums.__iter__()
