@@ -1,33 +1,58 @@
 #!/usr/bin/env python3.4
 
+
 class Sums:
-    def __init__(self, base=10, sums=None):
-        self._base = base
+    def __init__(self, digits='0123456789', sums=None):
+        self._digits = digits
+        self._base = len(digits)
 
         if sums is None:
-            sums = [(0, set()), (1, {1})]
-            for d in range(2, base):
-                sums += [(total + d, digits | {d}) for total, digits in sums]
+            sums = [(0, ''), (1, digits[1])]
+            for d, digit in enumerate(digits[2:], 2):
+                sums += [
+                    (total + d, addends + digit) for total, addends in sums
+                ]
 
             sums = sums[1:]
-            for d in range(1, base):
-                sums.remove((d, {d}))
+            for d, digit in enumerate(digits[1:], 1):
+                sums.remove((d, digit))
 
         self._sums = sorted(sums)
 
+    def filter(self, total=None, addends=None, digits=None):
+        sums = self._sums
+
+        if total:
+            if isinstance(total, str):
+                total_digits = total
+                total = 0
+                for d in total_digits:
+                    total = total * self._base + self._digits.index(d)
+
+            sums = [s for s in sums if s[0] == total]
+
+        if addends:
+            sums = [s for s in sums if len(s[1]) == addends]
+
+        if digits:
+            digits = set(digits)
+            sums = [s for s in sums if set(s[1]).issuperset(digits)]
+
+        return Sums(self._digits, sums=sums)
+
     def convert(self, s):
-        return s[0], tuple(sorted(s[1]))
+        total, addends = s
 
-    def with_total(self, total):
-        return Sums(self._base, [s for s in self._sums if s[0] == total])
+        total_digits = []
+        while total:
+            total_digits.append(self._digits[total % self._base])
+            total //= self._base
 
-    def with_digits(self, digits):
-        return Sums(self._base, [s for s in self._sums
-                                     if s[1].issuperset(digits)])
+        return ''.join(total_digits[::-1]), addends
 
-    def with_addends(self, addends):
-        return Sums(self._base, [s for s in self._sums
-                                     if len(s[1]) == addends])
+    @property
+    def max_sum(self):
+        return self._sums[-1][0]
 
     def __iter__(self):
         return self._sums.__iter__()
@@ -37,23 +62,23 @@ class Sums:
 
 
 if __name__ == '__main__':
-    sums = Sums(12)
+    doz_sums = Sums('0123456789XE')
 
-    print('Sums with total of 15:')
+    print('Sums totalling 15:')
 
-    for s in sums.with_total(15):
-        print('  ', sums.convert(s))
+    for ds in doz_sums.filter(total='15'):
+        print('  ', doz_sums.convert(ds))
 
-    print('\nSums containing digits 2-9 inclusive:')
+    print('\nSums containing digits 3-X inclusive:')
 
-    for s in sums.with_digits(range(2, 10)):
-        print('  ', sums.convert(s))
+    for ds in doz_sums.filter(digits='3456789X'):
+        print('  ', doz_sums.convert(ds))
 
-    print('\nSums containing 10 addends:')
+    print('\nSums containing ten addends:')
 
-    for s in sums.with_addends(10):
-        print('  ', sums.convert(s))
+    for ds in doz_sums.filter(addends=10):
+        print('  ', doz_sums.convert(ds))
 
-    print('\nSums totaling 20 with 5 addends including 2 and 3:')
-    for s in sums.with_total(20).with_digits({2,3}).with_addends(5):
-        print('  ', sums.convert(s))
+    print('\nSums totaling 1X with five addends including 2 and 3:')
+    for ds in doz_sums.filter(total='1X', addends=5, digits='23'):
+        print('  ', doz_sums.convert(ds))
